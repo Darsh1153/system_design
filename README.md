@@ -224,3 +224,11 @@ The Load Balancer distributes incoming requests across all available servers, al
 - A **Load Balancer** distributes requests across multiple servers.
 - **Round Robin** is one of the simplest load balancing algorithms.
 - Modern large-scale applications such as **Amazon, Netflix, Google, and Facebook** primarily rely on **Horizontal Scaling** because it provides better scalability, reliability, and fault tolerance.
+
+# Serverless:
+
+- Serverless is a cloud computing model where developers focus on writing code while the cloud provider manages the underlying infrastructure, scaling, and maintenance. You pay based on actual execution rather than keeping servers running continuously.
+
+# AWS Lambda:
+
+- AWS Lambda is a serverless compute service that executes your function in response to events such as HTTP requests, file uploads, or scheduled tasks. It automatically scales and charges only for the compute time used.
