@@ -196,15 +196,758 @@ Problems:
 
 ---
 
-# Next Topic
+# Notification System Design (Complete Architecture)
 
-To solve these problems, we introduce:
+## Evolution of the Architecture
 
-- Message Queues
-- Event-driven architecture
-- Notification workers
-- Retry mechanisms
-- Dead Letter Queues (DLQ)
-- Pub/Sub systems
+The notification system evolves through several stages.
 
+```
+Stage 1
+
+Signup API
+      │
+      ▼
+Send Email Directly
+```
+
+↓
+
+```
+Stage 2
+
+Signup API
+      │
+      ▼
+Internal Email Service
+      │
+      ▼
+Gmail
+```
+
+↓
+
+```
+Stage 3
+
+Signup API
+      │
+      ▼
+Message Queue
+      │
+      ▼
+Worker
+      │
+      ▼
+Email Provider
+```
+
+↓
+
+```
+Stage 4 (Production Ready)
+
+Users
+   │
+   ▼
+Load Balancer
+   │
+   ▼
+Application Servers
+   │
+   ▼
+SNS (Pub/Sub)
+   │
+   ▼
+Fan-out
+ ├── Email Queue
+ ├── Push Queue
+ └── In-App Queue
+```
+
+---
+
+# Problem with Internal Email Service
+
+Initially we improved the architecture by introducing an internal Email Service.
+
+```
+Signup API
+      │
+      ▼
+Email Service
+      │
+      ▼
+Gmail
+```
+
+Benefits
+
+- Signup doesn't directly call Gmail.
+- Better separation of concerns.
+- Easier maintenance.
+
+But a major problem still exists.
+
+Suppose
+
+```
+100 users sign up
+```
+
+The Email Service immediately sends
+
+```
+100 email requests
+```
+
+But Gmail only allows
+
+```
+30 emails/sec
+```
+
+Result
+
+```
+30 Success
+
+70 Failed
+```
+
+The signup succeeds, but 70 users never receive the welcome email.
+
+---
+
+# Introducing a Queue
+
+Instead of immediately sending emails, enqueue every request.
+
+```
+Signup API
+      │
+Save User
+      │
+      ▼
+Email Queue
+      │
+      ▼
+Return Success
+```
+
+A worker processes the queue later.
+
+```
+Email Queue
+      │
+      ▼
+Email Worker
+      │
+      ▼
+AWS SES / Gmail
+```
+
+---
+
+# Why Queues?
+
+Queues solve multiple problems.
+
+## 1. Low Latency
+
+Without Queue
+
+```
+Signup
+
+↓
+
+Wait for Email
+
+↓
+
+Return Response
+```
+
+With Queue
+
+```
+Signup
+
+↓
+
+Enqueue Email
+
+↓
+
+Return Response
+```
+
+Enqueuing is an **O(1)** operation, making the signup API much faster.
+
+---
+
+## 2. Retry Failed Messages
+
+Suppose Gmail is temporarily unavailable.
+
+```
+Queue
+
+↓
+
+Worker
+
+↓
+
+Gmail ❌
+```
+
+Instead of losing the message,
+
+```
+Re-enqueue Message
+```
+
+The worker retries later.
+
+---
+
+## 3. Rate Limiting
+
+Suppose the email provider allows
+
+```
+30 emails / second
+```
+
+The worker controls the sending rate.
+
+```
+Queue
+
+↓
+
+Pick 25 messages
+
+↓
+
+Send
+
+↓
+
+Sleep
+
+↓
+
+Pick next 25
+```
+
+This avoids hitting provider limits.
+
+In production, engineers often stay below the advertised limit for safety.
+
+Example
+
+```
+Provider Limit
+
+30/sec
+
+Actual Processing
+
+25/sec
+```
+
+---
+
+# Worker
+
+The Email Service now becomes a Worker.
+
+Responsibilities
+
+- Watch the queue
+- Pick messages
+- Send email
+- Retry failures
+- Respect rate limits
+
+```
+Queue
+
+↓
+
+Worker
+
+↓
+
+Email Provider
+```
+
+---
+
+# Retry Strategy
+
+Suppose Gmail is unavailable.
+
+Without retries
+
+```
+Email Lost
+```
+
+Instead
+
+```
+Retry
+
+↓
+
+Retry
+
+↓
+
+Retry
+```
+
+But retrying continuously wastes resources.
+
+---
+
+# Exponential Backoff
+
+Instead of retrying immediately,
+
+increase the delay after every failure.
+
+Example
+
+```
+Retry 1
+
+1 second
+```
+
+```
+Retry 2
+
+2 seconds
+```
+
+```
+Retry 3
+
+4 seconds
+```
+
+```
+Retry 4
+
+8 seconds
+```
+
+```
+Retry 5
+
+16 seconds
+```
+
+Benefits
+
+- Reduces pressure on external providers
+- Prevents retry storms
+- Handles temporary outages gracefully
+
+---
+
+# Max Retry
+
+Never retry forever.
+
+Example
+
+```
+Maximum Retry = 10
+```
+
+After 10 failures,
+
+stop automatic retries.
+
+---
+
+# Dead Letter Queue (DLQ)
+
+Messages that exceed the retry limit are moved to a Dead Letter Queue.
+
+```
+Main Queue
+
+↓
+
+Worker
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Max Retry Reached
+
+↓
+
+DLQ
+```
+
+Purpose
+
+- Preserve failed messages
+- Manual inspection
+- Manual replay
+- Debugging
+
+Developers can later move the message back to the main queue.
+
+---
+
+# New Business Requirement
+
+Initially
+
+```
+Signup
+
+↓
+
+Email
+```
+
+Later the product team asks for
+
+- Login Email
+- Friend Request Notification
+- Post Notification
+
+A naive implementation would look like
+
+```
+Signup
+
+↓
+
+Email Queue
+```
+
+```
+Login
+
+↓
+
+Email Queue
+```
+
+```
+Friend Request
+
+↓
+
+Email Queue
+```
+
+Every route directly pushes to different queues.
+
+---
+
+# Why This Doesn't Scale
+
+Suppose a new requirement arrives.
+
+Friend Request
+
+↓
+
+Push Notification
+
+Instead of Email
+
+Now every route needs modification.
+
+```
+Signup Route
+
+↓
+
+Change
+```
+
+```
+Login Route
+
+↓
+
+Change
+```
+
+```
+Friend Request Route
+
+↓
+
+Change
+```
+
+Every new notification channel requires changing application code.
+
+This creates **tight coupling**.
+
+---
+
+# Event-Driven Architecture
+
+Instead of directly sending messages to queues,
+
+publish events.
+
+```
+Application
+
+↓
+
+Publish Event
+```
+
+Examples
+
+```
+user.signup
+
+user.login
+
+user.post
+
+user.friend_request
+```
+
+The application only emits events.
+
+It doesn't know who consumes them.
+
+---
+
+# Pub/Sub (SNS)
+
+Use a Pub/Sub system like AWS SNS.
+
+```
+Application
+
+↓
+
+SNS Topic
+```
+
+SNS acts like an announcement system.
+
+Think of it as making an announcement in a room.
+
+```
+"User Signed Up!"
+```
+
+Anyone interested listens.
+
+Others ignore it.
+
+---
+
+# Fan-Out Architecture
+
+SNS distributes one event to multiple consumers.
+
+```
+                 SNS Topic
+                     │
+        ┌────────────┼────────────┐
+        │            │            │
+        ▼            ▼            ▼
+   Email Queue   Push Queue   In-App Queue
+```
+
+This is called **Fan-Out** because one event fans out to multiple destinations.
+
+---
+
+# Event Routing
+
+SNS filters events and routes them.
+
+Example
+
+```
+user.signup
+
+↓
+
+Email Queue
+```
+
+```
+user.login
+
+↓
+
+Email Queue
+
++
+
+In-App Queue
+```
+
+```
+user.friend_request
+
+↓
+
+Push Queue
+```
+
+```
+user.post
+
+↓
+
+In-App Queue
+```
+
+The application code never changes.
+
+Only SNS routing rules change.
+
+---
+
+# Why Fan-Out is Better
+
+Adding another notification channel becomes easy.
+
+Example
+
+Need SMS?
+
+Simply add
+
+```
+SMS Queue
+```
+
+Subscribe it to
+
+```
+user.signup
+```
+
+Done.
+
+No application code changes.
+
+---
+
+# Complete Production Architecture
+
+```text
+                           Users
+                              │
+                              ▼
+                     +----------------+
+                     | Load Balancer  |
+                     +----------------+
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+     +----------+        +----------+        +----------+
+     | API-1    |        | API-2    |        | API-3    |
+     +----------+        +----------+        +----------+
+              │               │                 │
+              └───────────────┼─────────────────┘
+                              │
+                   Publish Business Events
+                              │
+                              ▼
+                   +----------------------+
+                   |   SNS (Pub/Sub)      |
+                   | Topics               |
+                   | - user.signup        |
+                   | - user.login         |
+                   | - user.post          |
+                   | - user.friend_request|
+                   +----------------------+
+          ┌──────────────┼────────────────────┐
+          ▼              ▼                    ▼
+  +---------------+ +---------------+ +---------------+
+  | Email Queue   | | Push Queue    | | In-App Queue  |
+  | (SQS)         | | (SQS)         | | (SQS)         |
+  +---------------+ +---------------+ +---------------+
+          │              │                    │
+          ▼              ▼                    ▼
+ +---------------+ +---------------+ +---------------+
+ | Email Worker  | | Push Worker   | | In-App Worker |
+ +---------------+ +---------------+ +---------------+
+          │              │                    │
+          ▼              ▼                    ▼
+ AWS SES/Gmail      Firebase FCM        Notification DB
+          │
+          ▼
+ Retry → Exponential Backoff
+          │
+          ▼
+     Max Retry = 10
+          │
+          ▼
+        DLQ
+```
+
+---
+
+# Intelligent Notification Delivery
+
+Sending a notification isn't enough.
+
+The system should decide **whether** it should send one.
+
+Before sending, check:
+
+- Is the user online?
+- Is the channel muted?
+- Is Do Not Disturb enabled?
+- Has the user disabled notifications?
+- Was the user mentioned?
+- Is this notification important?
+- Is the user active on another device?
+- Which channel should be used?
+
+This decision-making layer is called the **Notification Ingestion Layer**.
+
+---
+
+# Final Takeaways
+
+- Never send notifications synchronously.
+- Use message queues for asynchronous processing.
+- Use workers to process notifications.
+- Respect provider rate limits.
+- Retry failed messages with exponential backoff.
+- Move permanently failed messages to a DLQ.
+- Publish events instead of calling notification services directly.
+- Use Pub/Sub (SNS) to implement a fan-out architecture.
+- Keep the application decoupled from notification channels.
+- Build an ingestion layer that decides **if**, **when**, and **how** a notification should be delivered.
 These allow user signup to complete immediately while notifications are processed in the background.
