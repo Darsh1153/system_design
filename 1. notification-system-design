@@ -1,0 +1,210 @@
+# System Design - Notification System
+
+## What is a Notification System?
+
+A notification system is responsible for sending messages to users when certain events occur in an application.
+
+Examples:
+- Welcome email after signup
+- Password reset email
+- Order confirmation
+- Push notifications
+- In-app notifications
+- SMS alerts
+
+Building a notification system is much more complex than simply calling an email API. It involves queues, pub/sub systems, retries, rate limiting, and event ingestion.
+
+---
+
+# Example: Welcome Email After Signup
+
+Suppose we have a social media application.
+
+### Flow
+
+```
+User
+   │
+   ▼
+POST /signup
+   │
+   ▼
+Store user in Database
+   │
+   ▼
+Send Welcome Email (Gmail/SendGrid/AWS SES)
+   │
+   ▼
+Return Success Response
+```
+
+Pseudo code
+
+```js
+app.post("/signup", async (req, res) => {
+    const user = await createUser(req.body);
+
+    await sendEmail(user.email);
+
+    res.send("Welcome!");
+});
+```
+
+This works, but it does **not scale**.
+
+---
+
+# Problems with this Design
+
+## 1. Synchronous External Call
+
+The signup request waits until the email provider responds.
+
+```
+Signup Request
+      │
+      ▼
+Create User
+      │
+      ▼
+Call Gmail API (3-5 seconds)
+      │
+      ▼
+Return Response
+```
+
+### Problem
+
+If sending the email takes **3 seconds**, then every signup request also becomes at least **3 seconds slower**.
+
+Instead of:
+
+```
+Signup = 300 ms
+```
+
+It becomes:
+
+```
+Signup = 300 ms
+          +
+Email API = 3 seconds
+----------------------
+Total = 3.3 seconds
+```
+
+This increases the user's waiting time.
+
+---
+
+## 2. Dependency on External Services
+
+Your signup flow now depends on an external email provider.
+
+Example providers:
+
+- Gmail API
+- AWS SES
+- SendGrid
+- Resend
+
+If the email provider is unavailable,
+
+```
+Signup
+   │
+   ▼
+Database ✅
+   │
+   ▼
+Email API ❌
+```
+
+the entire signup request fails.
+
+Even though the user could have been successfully registered, they cannot sign up simply because an email service is down.
+
+This is poor system design.
+
+**Important Principle**
+
+> User registration should not fail just because a welcome email cannot be sent.
+
+---
+
+## 3. Rate Limiting
+
+Every email provider limits how many emails you can send.
+
+Example:
+
+```
+Maximum:
+30 emails / second
+```
+
+Suppose:
+
+```
+100 users sign up in one second.
+```
+
+Your application tries to send:
+
+```
+100 emails
+```
+
+But the provider only accepts:
+
+```
+30 emails
+```
+
+The remaining **70 requests** will fail or be rejected.
+
+This is called **Rate Limiting**.
+
+Examples of providers with rate limits:
+
+- AWS SES
+- SendGrid
+- Gmail API
+- Resend
+
+---
+
+# Why This Design Doesn't Scale
+
+Problems:
+
+- High response latency
+- Tight coupling with external services
+- Signup fails if email provider fails
+- External APIs have rate limits
+- Poor user experience
+
+---
+
+# Key Takeaways
+
+- Never perform slow external operations synchronously in the request path.
+- External services should not determine whether the main business operation succeeds.
+- Email sending should happen asynchronously.
+- External providers always impose rate limits.
+- A scalable notification system needs asynchronous processing (queues), retries, and decoupled services.
+
+---
+
+# Next Topic
+
+To solve these problems, we introduce:
+
+- Message Queues
+- Event-driven architecture
+- Notification workers
+- Retry mechanisms
+- Dead Letter Queues (DLQ)
+- Pub/Sub systems
+
+These allow user signup to complete immediately while notifications are processed in the background.
