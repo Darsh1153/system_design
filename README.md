@@ -232,3 +232,388 @@ The Load Balancer distributes incoming requests across all available servers, al
 # AWS Lambda:
 
 - AWS Lambda is a serverless compute service that executes your function in response to events such as HTTP requests, file uploads, or scheduled tasks. It automatically scales and charges only for the compute time used.
+
+
+# Singleton Design Pattern
+
+## What is a Singleton?
+
+A **Singleton** is a design pattern that ensures **only one object of a class is created** throughout the application and provides a **global way to access that object**.
+
+### Think of it like this
+
+Imagine an office has only **one printer**.
+
+Every employee uses the same printer.
+
+```text
+Employee A ----\
+Employee B -----\
+Employee C -------> Printer
+Employee D -----/
+```
+
+No employee buys a new printer every time they need to print.
+
+Similarly, in Java, sometimes we need only **one object** for the entire application.
+
+Examples:
+
+- Database Connection Manager
+- Logger
+- Configuration Manager
+- Cache Manager
+- Thread Pool
+
+---
+
+# Why can't we use a normal class?
+
+Suppose we have:
+
+```java
+class Database {
+
+}
+```
+
+Now anyone can create objects.
+
+```java
+Database d1 = new Database();
+Database d2 = new Database();
+Database d3 = new Database();
+```
+
+Memory
+
+```text
+Heap
+
+Database Object 1
+
+Database Object 2
+
+Database Object 3
+```
+
+Sometimes this is wasteful.
+
+For example, if this class manages the database connection, we don't want multiple database managers.
+
+We want **only one**.
+
+---
+
+# How does Singleton solve this?
+
+It follows three simple rules.
+
+## Rule 1: Make the constructor private
+
+```java
+private Database() {
+    System.out.println("Database created.");
+}
+```
+
+### Why?
+
+Normally we create objects like this:
+
+```java
+new Database();
+```
+
+But if the constructor is private, nobody outside the class can create an object.
+
+For example:
+
+```java
+Database d = new Database();
+```
+
+Compilation Error:
+
+```text
+Database() has private access
+```
+
+Now the obvious question is:
+
+> If nobody can use `new`, then who creates the object?
+
+The answer is:
+
+> **The class itself creates the object.**
+
+A class can access its own private members.
+
+---
+
+## Rule 2: Create one static object
+
+```java
+private static Database obj = new Database();
+```
+
+This line creates **the only Database object**.
+
+Notice something interesting.
+
+Even though the constructor is private, this line works because it is inside the same class.
+
+Memory now looks like this:
+
+```text
+Heap
+
++----------------+
+| Database Object|
++----------------+
+```
+
+Only one object exists.
+
+### Why is it static?
+
+Because static members belong to the **class**, not to individual objects.
+
+There is only one copy of a static variable.
+
+If it wasn't static, every Database object would have its own copy, which defeats the purpose.
+
+---
+
+## Rule 3: Provide a public method to access the object
+
+```java
+public static Database getInstance() {
+    return obj;
+}
+```
+
+Since nobody can use
+
+```java
+new Database();
+```
+
+we provide another way to get the object.
+
+Whenever someone needs the Database object, they call:
+
+```java
+Database.getInstance();
+```
+
+This method simply returns the already existing object.
+
+No new object is created.
+
+---
+
+# Complete Code
+
+```java
+class Database {
+
+    private Database() {
+        System.out.println("Database created.");
+    }
+
+    private static Database obj = new Database();
+
+    public static Database getInstance() {
+        return obj;
+    }
+}
+```
+
+---
+
+# Using the Singleton
+
+```java
+class Main {
+
+    public static void main(String[] args) {
+
+        Database obj1 = Database.getInstance();
+        Database obj2 = Database.getInstance();
+
+        System.out.println(obj1);
+        System.out.println(obj2);
+    }
+}
+```
+
+---
+
+# What happens step by step?
+
+### Step 1
+
+When the `Database` class is loaded, Java executes:
+
+```java
+private static Database obj = new Database();
+```
+
+Output:
+
+```text
+Database created.
+```
+
+At this point, the object already exists.
+
+---
+
+### Step 2
+
+```java
+Database obj1 = Database.getInstance();
+```
+
+Internally,
+
+```java
+getInstance()
+```
+
+returns
+
+```java
+return obj;
+```
+
+So `obj1` points to the Database object.
+
+```text
+obj1
+  |
+  ▼
+
+Database Object
+```
+
+---
+
+### Step 3
+
+```java
+Database obj2 = Database.getInstance();
+```
+
+Again,
+
+```java
+return obj;
+```
+
+Now:
+
+```text
+obj1 --------\
+              \
+obj2 ---------> Database Object
+```
+
+Notice:
+
+No second object is created.
+
+Both variables point to the **same object**.
+
+---
+
+# Output
+
+```text
+Database created.
+Database@5acf9800
+Database@5acf9800
+```
+
+Both addresses are identical.
+
+This proves that:
+
+```java
+obj1 == obj2
+```
+
+returns
+
+```text
+true
+```
+
+because they both reference the same object.
+
+---
+
+# Memory Diagram
+
+```text
+Stack
+
+obj1 -----------\
+                 \
+obj2 -------------> Database Object
+                 /
+static obj ------/
+```
+
+Three references, but **only one object** exists in memory.
+
+---
+
+# Why is `getInstance()` static?
+
+Imagine it wasn't static.
+
+```java
+public Database getInstance() {
+    return obj;
+}
+```
+
+To call it, we would need an object.
+
+```java
+Database d = new Database();
+d.getInstance();
+```
+
+But we cannot create an object because the constructor is private.
+
+Therefore, `getInstance()` must also be static so that we can call:
+
+```java
+Database.getInstance();
+```
+
+without creating an object first.
+
+---
+
+# Easy Way to Remember
+
+A Singleton follows three simple rules:
+
+1. **Private Constructor**
+   - Prevents others from creating objects.
+
+2. **Private Static Object**
+   - Stores the one and only instance.
+
+3. **Public Static getInstance()**
+   - Gives everyone access to that single object.
+
+---
+
+# One-Line Summary
+
+**Singleton = One object, shared by everyone.**
