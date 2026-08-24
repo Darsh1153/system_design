@@ -617,3 +617,591 @@ A Singleton follows three simple rules:
 # One-Line Summary
 
 **Singleton = One object, shared by everyone.**
+
+
+# Object-Oriented Class Relationships (Java)
+
+A quick revision guide for **Association, Aggregation, Composition, Dependency, Realization, and Dependency Injection** with Java examples and UML notation.
+
+> **Memory Trick:** Use → Know → Have → Own → Implement
+
+---
+
+# Relationship Strength (Weak → Strong)
+
+| Relationship | Meaning |
+|-------------|---------|
+| Dependency | Temporarily uses another class |
+| Association | Knows or references another class |
+| Aggregation | Has-a relationship with independent lifecycle |
+| Composition | Has-a relationship with dependent lifecycle |
+| Realization | A class implements an interface |
+
+---
+
+# 1. Association
+
+## Definition
+
+Association means **two classes are related and interact with each other**, but neither owns the other.
+
+> Think: **"These two objects know each other."**
+
+## UML
+
+```text
+Doctor ───────── Patient
+```
+
+## Java Example
+
+```java
+class Doctor {
+    private String name;
+}
+
+class Patient {
+    private String name;
+}
+```
+
+## Real-world examples
+
+- Doctor ↔ Patient
+- Student ↔ Course
+- Driver ↔ Car
+
+## Lifecycle
+
+```text
+Doctor ❌     Patient ✓
+Patient ❌    Doctor ✓
+```
+
+Both objects can exist independently.
+
+### Interview One-Liner
+
+> Association is a general relationship where two objects know or interact with each other without ownership.
+
+---
+
+# 2. Aggregation
+
+## Definition
+
+Aggregation is a **special type of association** where one class **has** another class, but the child object has an **independent lifecycle**.
+
+> Think: **"I have you, but I don't own your life."**
+
+## UML
+
+```text
+Department ◇──────── Professor
+```
+
+`◇` = Hollow Diamond
+
+## Java Example
+
+```java
+import java.util.*;
+
+class Professor {
+    String name;
+
+    Professor(String name) {
+        this.name = name;
+    }
+}
+
+class Department {
+
+    private List<Professor> professors;
+
+    Department(List<Professor> professors) {
+        this.professors = professors;
+    }
+}
+```
+
+### Usage
+
+```java
+Professor p1 = new Professor("Darsh");
+Professor p2 = new Professor("John");
+
+Department cs = new Department(List.of(p1, p2));
+```
+
+## Memory Diagram
+
+```text
+Professor Darsh
+Professor John
+       ↓
+Department (Computer Science)
+```
+
+Notice:
+
+- Professors were created **before** the Department.
+- The Department only stores references.
+
+## Lifecycle
+
+```text
+Department ❌
+
+Professor Darsh ✓
+Professor John ✓
+```
+
+The professors survive even if the department is removed.
+
+## Real-world examples
+
+- Team → Employee
+- Library → Book
+- University → Professor
+
+### Interview One-Liner
+
+> Aggregation represents weak ownership where the child can exist independently of the parent.
+
+---
+
+# 3. Composition
+
+## Definition
+
+Composition is a **strong has-a relationship** where the child belongs exclusively to the parent.
+
+> Think: **"I own you."**
+
+## UML
+
+```text
+Order ◆──────── OrderItem
+```
+
+`◆` = Filled Diamond
+
+## Java Example
+
+```java
+import java.util.*;
+
+class OrderItem {
+
+    private String name;
+
+    OrderItem(String name) {
+        this.name = name;
+    }
+}
+
+class Order {
+
+    private List<OrderItem> items = new ArrayList<>();
+
+    public void addItem(String name) {
+        items.add(new OrderItem(name));
+    }
+}
+```
+
+### Usage
+
+```java
+Order order = new Order();
+
+order.addItem("Laptop");
+order.addItem("Mouse");
+```
+
+## Memory Diagram
+
+```text
+Order
+  |
+  ├── Laptop
+  └── Mouse
+```
+
+Notice:
+
+- The Order creates its own `OrderItem`s.
+- The items belong to that specific Order.
+
+## Lifecycle
+
+```text
+Order ❌
+  |
+  ├── Laptop ❌
+  └── Mouse ❌
+```
+
+The child's lifecycle depends on the parent.
+
+## Real-world examples
+
+- House → Room
+- Conversation → Message
+- Computer → CPU, RAM, HardDrive
+
+## Computer Example
+
+```java
+class Computer {
+
+    private CPU cpu;
+    private RAM ram;
+
+    Computer() {
+        cpu = new CPU("HP", 6);
+        ram = new RAM(8);
+    }
+}
+```
+
+The `Computer` creates and owns its components.
+
+### Interview One-Liner
+
+> Composition represents strong ownership where the child cannot meaningfully exist without the parent.
+
+---
+
+# Aggregation vs Composition
+
+| Feature | Aggregation | Composition |
+|---------|------------|------------|
+| Ownership | Weak | Strong |
+| Child survives parent? | ✅ Yes | ❌ No |
+| UML | ◇ | ◆ |
+| Example | Team → Employee | Order → OrderItem |
+| Lifecycle | Independent | Dependent |
+
+## Golden Question
+
+> **If I delete the parent, what happens to the child?**
+
+```text
+Child survives?
+        ↓
+Aggregation
+
+Child disappears?
+        ↓
+Composition
+```
+
+---
+
+# 4. Dependency
+
+## Definition
+
+Dependency means one class **temporarily uses another class** to perform a task.
+
+> Think: **"I need you right now."**
+
+Unlike association, the object is usually **not stored**.
+
+## UML
+
+```text
+NotificationService - - - - -> NotificationSender
+```
+
+Dashed Arrow = Dependency
+
+## Java Example
+
+```java
+class Printer {
+
+    void print(String text) {
+        System.out.println(text);
+    }
+}
+
+class Computer {
+
+    void printDocument(Printer printer) {
+        printer.print("Hello");
+    }
+}
+```
+
+### Usage
+
+```java
+Printer printer = new Printer();
+
+Computer computer = new Computer();
+
+computer.printDocument(printer);
+```
+
+## Memory Diagram
+
+```text
+Computer
+   |
+   | uses
+   ↓
+Printer
+```
+
+After the method finishes, `Computer` doesn't keep the `Printer`.
+
+## Common places where Dependency appears
+
+- Method parameters
+- Local variables
+- Return types
+- Utility/helper classes
+
+### Interview One-Liner
+
+> Dependency means a class temporarily relies on another class to complete an operation.
+
+---
+
+# 5. Realization
+
+## Definition
+
+Realization is when a **class implements an interface**.
+
+> Think: **"I promise to provide this behavior."**
+
+## UML
+
+```text
+NotificationSender
+        △
+        |
+EmailNotification
+```
+
+## Java Example
+
+```java
+interface NotificationSender {
+
+    void send(String message);
+}
+
+class EmailNotification implements NotificationSender {
+
+    @Override
+    public void send(String message) {
+        System.out.println("Email: " + message);
+    }
+}
+```
+
+### Usage
+
+```java
+NotificationSender sender = new EmailNotification();
+
+sender.send("Hello");
+```
+
+### Output
+
+```text
+Email: Hello
+```
+
+## Real-world examples
+
+- Bird implements `Flyable`
+- Car implements `Drivable`
+- EmailNotification implements `NotificationSender`
+
+### Interview One-Liner
+
+> Realization is the relationship where a class fulfills the contract defined by an interface.
+
+---
+
+# 6. Dependency Injection (Bonus)
+
+Dependency Injection (DI) is closely related to Dependency and is one of the most common interview topics.
+
+## Without Dependency Injection
+
+```java
+class NotificationService {
+
+    private EmailNotification email = new EmailNotification();
+}
+```
+
+### Problems
+
+- Tightly coupled
+- Difficult to replace
+- Hard to test
+
+---
+
+## With Dependency Injection
+
+```java
+interface NotificationSender {
+
+    void send(String message);
+}
+
+class NotificationService {
+
+    private final NotificationSender sender;
+
+    NotificationService(NotificationSender sender) {
+        this.sender = sender;
+    }
+
+    void notify(String message) {
+        sender.send(message);
+    }
+}
+```
+
+### Usage
+
+```java
+NotificationSender sender = new EmailNotification();
+
+NotificationService service =
+    new NotificationService(sender);
+
+service.notify("Welcome!");
+```
+
+## Why `final`?
+
+```java
+private final NotificationSender sender;
+```
+
+`final` means:
+
+- Assign once.
+- Cannot point to another object later.
+
+This makes constructor injection safer because the dependency cannot be accidentally replaced.
+
+### Interview One-Liner
+
+> Dependency Injection means a class receives the objects it depends on instead of creating them itself.
+
+---
+
+# How to Identify the Relationship
+
+Ask these questions in order.
+
+## 1. Does A just use B temporarily?
+
+```text
+YES
+ ↓
+Dependency
+```
+
+## 2. Does A keep a reference to B?
+
+```text
+YES
+ ↓
+Association
+```
+
+## 3. Is B a part of A but can survive independently?
+
+```text
+YES
+ ↓
+Aggregation
+```
+
+## 4. Is B owned by A and its lifecycle depends on A?
+
+```text
+YES
+ ↓
+Composition
+```
+
+## 5. Does a class implement an interface?
+
+```text
+YES
+ ↓
+Realization
+```
+
+---
+
+# UML Cheat Sheet
+
+| Relationship | UML Symbol |
+|-------------|-----------|
+| Association | `────` |
+| Aggregation | `◇────` |
+| Composition | `◆────` |
+| Dependency | `- - - ->` |
+| Realization | `△` |
+
+---
+
+# 30-Second Interview Revision
+
+| Relationship | Memory Phrase |
+|-------------|---------------|
+| Association | "We know each other." |
+| Aggregation | "I have you, but you can live without me." |
+| Composition | "I own you." |
+| Dependency | "I use you temporarily." |
+| Realization | "I implement your contract." |
+
+---
+
+# Final Mental Model
+
+```text
+                 Object Relationships
+
+Dependency
+     ↓
+"I use you."
+
+Association
+     ↓
+"I know you."
+
+Aggregation
+     ↓
+"I have you."
+
+Composition
+     ↓
+"I own you."
+
+Realization
+     ↓
+"I implement your contract."
+```
+
+### Golden Memory Trick
+
+**Use → Know → Have → Own → Implement**
+
+This progression is an easy way to remember the increasing strength and purpose of each class relationship during interviews.
