@@ -1205,3 +1205,546 @@ Realization
 **Use → Know → Have → Own → Implement**
 
 This progression is an easy way to remember the increasing strength and purpose of each class relationship during interviews.
+
+
+# OOP Design Principles (Java)
+
+These are some of the most commonly asked software design principles in Java interviews. A good design generally aims for:
+
+- **DRY** – Don't Repeat Yourself
+- **KISS** – Keep It Simple
+- **YAGNI** – You Aren't Gonna Need It
+- **Law of Demeter** – Talk only to your immediate collaborators
+- **Composition over Inheritance** – Prefer **HAS-A** over **IS-A** relationships
+
+---
+
+# 1. DRY (Don't Repeat Yourself)
+
+## Definition
+
+> Every piece of logic or business rule should have a **single source of truth**.
+
+Instead of writing the same logic multiple times, extract it into a reusable method or class.
+
+## ❌ Without DRY
+
+The tax calculation is repeated in every class.
+
+```java
+class USTaxCalculator {
+    public double calculate(int amount) {
+        return amount + amount * 0.10;
+    }
+}
+
+class EUTaxCalculator {
+    public double calculate(int amount) {
+        return amount + amount * 0.20;
+    }
+}
+```
+
+### Problems
+
+- Duplicate logic.
+- If the tax formula changes, multiple classes must be updated.
+
+## ✅ With DRY
+
+```java
+class TaxCalculator {
+
+    public double calculate(int amount, double taxRate) {
+        return amount + amount * taxRate;
+    }
+}
+
+class USTaxCalculator {
+
+    private TaxCalculator tax = new TaxCalculator();
+
+    public double calculate(int amount) {
+        return tax.calculate(amount, 0.10);
+    }
+}
+
+class EUTaxCalculator {
+
+    private TaxCalculator tax = new TaxCalculator();
+
+    public double calculate(int amount) {
+        return tax.calculate(amount, 0.20);
+    }
+}
+```
+
+### Benefits
+
+- Formula exists only once.
+- Easier maintenance.
+- Less chance of inconsistent behavior.
+
+### Interview Tip
+
+> DRY is about **removing duplicate knowledge**, not just duplicate code.
+
+---
+
+# 2. KISS (Keep It Simple, Stupid)
+
+## Definition
+
+> Write the simplest solution that correctly solves the problem.
+
+Simple code is easier to:
+
+- Read
+- Debug
+- Test
+- Maintain
+
+## ❌ Overcomplicated
+
+```java
+class Login {
+
+    boolean canLogin(boolean verified, boolean active) {
+
+        if (verified == true) {
+            if (active == true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+```
+
+## ✅ KISS Version
+
+```java
+class Login {
+
+    boolean canLogin(boolean verified, boolean active) {
+        return verified && active;
+    }
+}
+```
+
+Same behavior. Much easier to understand.
+
+## KISS Technique: Guard Clauses
+
+Instead of deep nesting,
+
+```java
+if(order != null){
+    if(order.getItems()!=null){
+        if(!order.getItems().isEmpty()){
+            process();
+        }
+    }
+}
+```
+
+Use early returns.
+
+```java
+if(order == null) return;
+if(order.getItems() == null) return;
+if(order.getItems().isEmpty()) return;
+
+process();
+```
+
+This is flatter and easier to read.
+
+### Interview Tip
+
+> KISS doesn't mean "write less code." It means "write clearer code."
+
+---
+
+# 3. YAGNI (You Aren't Gonna Need It)
+
+## Definition
+
+> Don't build features until they're actually required.
+
+Avoid creating unnecessary methods, classes, or abstractions for imaginary future requirements.
+
+## ❌ Violates YAGNI
+
+Requirement:
+
+> Only email notifications are needed.
+
+```java
+interface NotificationSender{
+    void send(String msg);
+}
+
+class EmailSender implements NotificationSender{}
+
+class SmsSender implements NotificationSender{}
+
+class PushSender implements NotificationSender{}
+```
+
+Two classes aren't even used.
+
+## ✅ YAGNI Version
+
+```java
+class EmailSender {
+
+    public void send(String msg){
+        System.out.println("Email: " + msg);
+    }
+}
+```
+
+Later, if SMS becomes a requirement, introduce an interface.
+
+## Another Example
+
+Requirement:
+
+> Add two numbers.
+
+Don't build this.
+
+```java
+class Calculator {
+
+    add(){}
+
+    subtract(){}
+
+    multiply(){}
+
+    divide(){}
+}
+```
+
+Instead:
+
+```java
+class Calculator {
+
+    int add(int a,int b){
+        return a+b;
+    }
+}
+```
+
+### Interview Tip
+
+Ask yourself:
+
+> **"Is this solving today's problem or tomorrow's guess?"**
+
+If it's tomorrow's guess, YAGNI says don't build it yet.
+
+---
+
+# 4. Law of Demeter (Principle of Least Knowledge)
+
+## Definition
+
+> Talk to your immediate friends, not your friends' friends.
+
+A class should not navigate through another object's internal structure.
+
+A common sign is:
+
+```java
+a.getB().getC().getD();
+```
+
+This is called **Train Wreck Code**.
+
+## ❌ Bad Example
+
+Object relationship:
+
+```text
+Order
+ └── Customer
+      └── Address
+           └── City
+```
+
+Code:
+
+```java
+class Address {
+
+    private String city = "Chennai";
+
+    public String getCity() {
+        return city;
+    }
+}
+
+class Customer {
+
+    private Address address = new Address();
+
+    public Address getAddress() {
+        return address;
+    }
+}
+
+class Order {
+
+    private Customer customer = new Customer();
+
+    public Customer getCustomer() {
+        return customer;
+    }
+}
+```
+
+Usage:
+
+```java
+Order order = new Order();
+
+System.out.println(
+    order.getCustomer()
+         .getAddress()
+         .getCity()
+);
+```
+
+### Why is this bad?
+
+`Main` knows:
+
+- Order has Customer.
+- Customer has Address.
+- Address has City.
+
+Too much knowledge.
+
+## ✅ Good Example
+
+Move the responsibility into `Order`.
+
+```java
+class Customer {
+
+    private Address address = new Address();
+
+    public String getCity() {
+        return address.getCity();
+    }
+}
+
+class Order {
+
+    private Customer customer = new Customer();
+
+    public String getDeliveryCity() {
+        return customer.getCity();
+    }
+}
+```
+
+Now:
+
+```java
+Order order = new Order();
+
+System.out.println(order.getDeliveryCity());
+```
+
+### Before vs After
+
+| ❌ Bad | ✅ Good |
+|--------|----------|
+| `order.getCustomer().getAddress().getCity()` | `order.getDeliveryCity()` |
+
+### Interview Tip
+
+Whenever you see multiple dots, ask:
+
+> **"Can the first object answer this question itself?"**
+
+---
+
+# 5. Composition Over Inheritance
+
+## Definition
+
+> Favor **HAS-A** relationships over **IS-A** relationships.
+
+Instead of inheriting behavior, combine smaller objects.
+
+## Real-Life Analogy
+
+A car is made of:
+
+- Engine
+- Wheels
+- Steering
+
+A car **has an** engine.
+
+A car is **not an** engine.
+
+## ❌ Wrong (Inheritance)
+
+```java
+class Engine {
+
+    void start() {
+        System.out.println("Engine Started");
+    }
+}
+
+class Car extends Engine{
+}
+```
+
+This says:
+
+> A Car **is an** Engine.
+
+That's incorrect.
+
+## ✅ Correct (Composition)
+
+```java
+class Engine {
+
+    void start() {
+        System.out.println("Engine Started");
+    }
+}
+
+class Car {
+
+    private Engine engine = new Engine();
+
+    void drive() {
+        engine.start();
+        System.out.println("Car Moving");
+    }
+}
+```
+
+Output:
+
+```text
+Engine Started
+Car Moving
+```
+
+Now the relationship is:
+
+```text
+Car
+ └── Engine
+```
+
+## Better with Interfaces
+
+Suppose we have multiple engines.
+
+```java
+interface Engine{
+    void start();
+}
+
+class PetrolEngine implements Engine{
+
+    public void start(){
+        System.out.println("Petrol Engine");
+    }
+}
+
+class ElectricEngine implements Engine{
+
+    public void start(){
+        System.out.println("Electric Engine");
+    }
+}
+```
+
+Compose them.
+
+```java
+class Car{
+
+    private Engine engine;
+
+    Car(Engine engine){
+        this.engine = engine;
+    }
+
+    void drive(){
+        engine.start();
+    }
+}
+```
+
+Usage:
+
+```java
+Car petrolCar = new Car(new PetrolEngine());
+
+Car electricCar = new Car(new ElectricEngine());
+```
+
+Now `Car` never changes. Only the engine changes.
+
+---
+
+# Composition vs Inheritance
+
+| Inheritance | Composition |
+|-------------|------------|
+| IS-A | HAS-A |
+| Tight coupling | Loose coupling |
+| Hard to replace behavior | Easy to replace behavior |
+| Parent changes affect children | Components change independently |
+
+---
+
+# Quick Comparison of All Principles
+
+| Principle | Goal | Example |
+|-----------|------|---------|
+| **DRY** | Remove duplicate logic | Shared `TaxCalculator` |
+| **KISS** | Keep code simple | Guard clauses |
+| **YAGNI** | Don't build unused features | Only create `EmailSender` |
+| **Law of Demeter** | Avoid reaching into another object's internals | `order.getDeliveryCity()` |
+| **Composition** | Prefer HAS-A over IS-A | `Car` has an `Engine` |
+
+---
+
+# Interview Cheat Sheet
+
+| Principle | One-Line Answer |
+|-----------|----------------|
+| **DRY** | One piece of logic should exist in one place. |
+| **KISS** | Choose the simplest solution that works. |
+| **YAGNI** | Don't build features until they're needed. |
+| **Law of Demeter** | Talk only to your immediate collaborators. |
+| **Composition** | Build objects by combining smaller objects instead of inheriting behavior. |
+
+## Easy Memory Trick
+
+Think of building an **Uber-like application**:
+
+- **DRY:** One `FareCalculator` shared everywhere.
+- **KISS:** Use simple methods and guard clauses.
+- **YAGNI:** Don't create `HelicopterRide` until it's required.
+- **Law of Demeter:** `ride.getDriverName()` instead of `ride.getDriver().getVehicle().getDriverProfile()`.
+- **Composition:** `RideService` has a `DriverService`, `FareCalculator`, and `NotificationService` instead of extending them.
+
+This combination—**DRY + KISS + YAGNI + Law of Demeter + Composition**—helps create code that is **clean, maintainable, loosely coupled, highly cohesive, and interview-ready**.
