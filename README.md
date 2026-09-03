@@ -1748,3 +1748,909 @@ Think of building an **Uber-like application**:
 - **Composition:** `RideService` has a `DriverService`, `FareCalculator`, and `NotificationService` instead of extending them.
 
 This combination—**DRY + KISS + YAGNI + Law of Demeter + Composition**—helps create code that is **clean, maintainable, loosely coupled, highly cohesive, and interview-ready**.
+
+
+# SOLID Principles in Java (Interview Preparation Guide)
+
+SOLID is a set of **five object-oriented design principles** that help us write code that is easier to maintain, extend, test, and reuse.
+
+| Principle | Full Form | Goal |
+|-----------|-----------|------|
+| **S** | Single Responsibility Principle | One class should have one reason to change. |
+| **O** | Open/Closed Principle | Open for extension, closed for modification. |
+| **L** | Liskov Substitution Principle | Child classes must keep the parent's promise. |
+| **I** | Interface Segregation Principle | Don't force classes to implement unnecessary methods. |
+| **D** | Dependency Inversion Principle | Depend on abstractions, not concrete classes. |
+
+---
+
+# Quick SOLID Decision Tree
+
+Before coding, ask these questions:
+
+```text
+Is one class doing multiple jobs?
+        ↓
+       SRP
+
+Adding a new feature?
+        ↓
+       OCP
+
+Is a child breaking the parent's promise?
+        ↓
+       LSP
+
+Are unnecessary methods being forced?
+        ↓
+       ISP
+
+Is one class directly creating another class?
+        ↓
+       DIP
+```
+
+---
+
+# 1. Single Responsibility Principle (SRP)
+
+## Definition
+
+> **A class should have only one reason to change.**
+
+A responsibility is **not a method**. It is a **job** or **purpose**.
+
+## Real-life Analogy
+
+Think of a restaurant.
+
+- 👨‍🍳 Chef cooks food.
+- 💵 Cashier collects money.
+- 🚚 Delivery person delivers food.
+
+Each person has **one job**.
+
+---
+
+## Bad Example
+
+One class doing multiple jobs.
+
+```java
+class Report {
+
+    public void generate() {
+        System.out.println("Generating report");
+    }
+
+    public void save() {
+        System.out.println("Saving report");
+    }
+
+    public void email() {
+        System.out.println("Emailing report");
+    }
+}
+```
+
+### Why it's bad
+
+This class has **three reasons to change**:
+
+- Report generation changes.
+- Saving logic changes.
+- Email logic changes.
+
+---
+
+## Good Example
+
+Split responsibilities.
+
+```java
+class ReportGenerator {
+    public void generate() {
+        System.out.println("Generating report");
+    }
+}
+
+class ReportSaver {
+    public void save() {
+        System.out.println("Saving report");
+    }
+}
+
+class EmailService {
+    public void send() {
+        System.out.println("Sending email");
+    }
+}
+```
+
+Each class now has **one responsibility**.
+
+---
+
+## Real Interview Example
+
+### Before
+
+`MemberSignup` handled:
+
+- Validation
+- Member storage
+- Audit logging
+
+### After
+
+```text
+MemberSignup
+     |
+     |----> Validator
+     |----> MemberStorage
+     |----> AuditLog
+```
+
+Now each part can evolve independently.
+
+---
+
+## How to Identify SRP Questions
+
+Look for words like:
+
+- validation
+- storage
+- logging
+- formatting
+- report generation
+- independently evolve
+
+Ask yourself:
+
+> "Is this class doing multiple jobs?"
+
+---
+
+## Memory Trick
+
+> **One Class → One Job → One Reason to Change**
+
+---
+
+# 2. Open/Closed Principle (OCP)
+
+## Definition
+
+> **Software should be open for extension but closed for modification.**
+
+Instead of changing old code, **add new code**.
+
+## Real-life Analogy
+
+Think of a phone charger.
+
+The wall socket never changes.
+
+New chargers plug into it.
+
+You don't rebuild the wall every time.
+
+---
+
+## Bad Example
+
+```java
+class Discount {
+
+    public double calculate(String type, double price) {
+
+        if(type.equals("student"))
+            return price * 0.8;
+
+        if(type.equals("senior"))
+            return price * 0.7;
+
+        return price;
+    }
+}
+```
+
+Adding `"employee"` requires modifying existing code.
+
+---
+
+## Good Example
+
+Create an abstraction.
+
+```java
+interface DiscountPolicy {
+    double calculate(double price);
+}
+```
+
+Implement different policies.
+
+```java
+class StudentDiscount implements DiscountPolicy {
+
+    public double calculate(double price) {
+        return price * 0.8;
+    }
+}
+
+class SeniorDiscount implements DiscountPolicy {
+
+    public double calculate(double price) {
+        return price * 0.7;
+    }
+}
+```
+
+Need Employee Discount?
+
+```java
+class EmployeeDiscount implements DiscountPolicy {
+
+    public double calculate(double price) {
+        return price * 0.6;
+    }
+}
+```
+
+No existing code changes.
+
+---
+
+## Real Interview Example
+
+### Text Pipeline
+
+Old approach:
+
+```java
+if(kind.equals("uppercase")) ...
+else if(kind.equals("prefix")) ...
+```
+
+New requirement:
+
+```text
+Reverse
+```
+
+Instead of adding another `if`, create:
+
+```text
+TextStep
+   |
+   |---- UppercaseStep
+   |---- PrefixStep
+   |---- ReverseStep
+```
+
+---
+
+## How to Identify OCP Questions
+
+Keywords:
+
+- new feature
+- new policy
+- extend
+- plugin
+- without modifying existing code
+
+Ask yourself:
+
+> "Can I solve this by creating a new class?"
+
+---
+
+## Memory Trick
+
+> **Don't edit old code. Add new code.**
+
+---
+
+# 3. Liskov Substitution Principle (LSP)
+
+## Definition
+
+> **A child class should be able to replace its parent without breaking the program.**
+
+The child must keep the parent's promise.
+
+## Real-life Analogy
+
+Imagine every ATM says:
+
+> "Withdraw ₹100."
+
+- ATM A gives ₹100.
+- ATM B gives ₹60 but still says "Success."
+
+The second ATM breaks the contract.
+
+---
+
+## Bad Example
+
+```java
+class Bird {
+    void fly(){}
+}
+
+class Penguin extends Bird {
+
+    void fly(){
+        throw new UnsupportedOperationException();
+    }
+}
+```
+
+A Penguin cannot really fly.
+
+It breaks expectations.
+
+---
+
+## Better Design
+
+```java
+class Bird{}
+
+interface Flying{
+    void fly();
+}
+
+class Crow extends Bird implements Flying{
+
+    public void fly(){
+        System.out.println("Flying");
+    }
+}
+
+class Penguin extends Bird{}
+```
+
+No fake behavior.
+
+---
+
+## Real Interview Example
+
+### Payment Contract
+
+The interface promises:
+
+```java
+charge(50)
+```
+
+means
+
+> "Exactly ₹50 charged."
+
+Wrong Gift Card behavior:
+
+```text
+Balance = 30
+Charge(50)
+
+Charged = 30
+Returned true
+```
+
+Client thinks ₹50 was paid.
+
+Correct behavior:
+
+```text
+Return false
+Balance unchanged
+Charged unchanged
+```
+
+Either charge everything or charge nothing.
+
+---
+
+## How to Identify LSP Questions
+
+Keywords:
+
+- contract
+- promise
+- substitution
+- postcondition
+- precondition
+- returns true only after
+- client cannot trust
+
+Ask yourself:
+
+> "Is one implementation breaking the interface's promise?"
+
+---
+
+## Memory Trick
+
+> **Children must keep the parent's promise.**
+
+---
+
+# 4. Interface Segregation Principle (ISP)
+
+## Definition
+
+> **Don't force classes to implement methods they don't need.**
+
+Prefer **many small interfaces** over one giant interface.
+
+## Real-life Analogy
+
+Imagine a TV remote with buttons for:
+
+- TV
+- AC
+- Washing Machine
+- Garage Door
+
+Most users only need TV buttons.
+
+Smaller focused remotes are better.
+
+---
+
+## Bad Example
+
+```java
+interface OfficeDevice{
+
+    void print();
+
+    void scan();
+
+    void fax();
+}
+```
+
+Basic printer:
+
+```java
+class BasicPrinter implements OfficeDevice{
+
+    public void print(){}
+
+    public void scan(){
+        throw new UnsupportedOperationException();
+    }
+
+    public void fax(){
+        throw new UnsupportedOperationException();
+    }
+}
+```
+
+The printer is forced to implement unnecessary methods.
+
+---
+
+## Good Example
+
+Split the interface.
+
+```java
+interface Printer{
+    void print();
+}
+
+interface Scanner{
+    void scan();
+}
+
+interface Fax{
+    void fax();
+}
+```
+
+Now:
+
+```java
+class BasicPrinter implements Printer{}
+```
+
+Only what it needs.
+
+---
+
+## Real Interview Example 1: Plugin Host
+
+Old interface:
+
+```java
+interface LifecyclePlugin{
+
+    onStart();
+
+    onRequest();
+
+    onStop();
+}
+```
+
+Logger had to write:
+
+```java
+onRequest(){
+    return "";
+}
+```
+
+Fake implementation.
+
+Better design:
+
+```text
+LifecyclePlugin
+      |
+      |---- pluginName()
+
+OnStart
+OnRequest
+OnStop
+```
+
+Logger implements only:
+
+```text
+LifecyclePlugin
+OnStart
+OnStop
+```
+
+No fake methods.
+
+---
+
+## Real Interview Example 2: Device Hub
+
+Instead of one large interface:
+
+```text
+OfficeDevice
+```
+
+Use:
+
+```text
+Device
+```
+
+Capabilities become:
+
+- Printer
+- Scanner
+- Fax
+
+Then check capabilities using `instanceof`.
+
+---
+
+## Understanding `instanceof`
+
+Suppose:
+
+```java
+Device device = new BasicPrinter();
+```
+
+Ask:
+
+```java
+device instanceof Printer
+```
+
+Result:
+
+```text
+true
+```
+
+Now safely cast:
+
+```java
+Printer printer = (Printer) device;
+printer.printDocument("Resume");
+```
+
+### How `instanceof` Works (Simple Explanation)
+
+This line:
+
+```java
+if (device instanceof Printer)
+```
+
+asks:
+
+> "Is this object actually a Printer?"
+
+- `true` → Yes, use printer methods.
+- `false` → No, don't call printer methods.
+
+Then:
+
+```java
+Printer printer = (Printer) device;
+```
+
+means:
+
+> "Since I know it's a printer, treat it as a Printer."
+
+The same pattern appears in Plugin Host:
+
+```java
+if(plugin instanceof OnStart){
+    OnStart startPlugin = (OnStart) plugin;
+    String result = startPlugin.onStart();
+}
+```
+
+Think of it as checking whether the object has the required **badge** before using its special ability.
+
+---
+
+## How to Identify ISP Questions
+
+Keywords:
+
+- unnecessary methods
+- unsupported operation
+- split interface
+- huge interface
+- optional methods
+
+Ask yourself:
+
+> "Is this class forced to implement methods it doesn't need?"
+
+---
+
+## Memory Trick
+
+> **Small focused interfaces.**
+
+---
+
+# 5. Dependency Inversion Principle (DIP)
+
+## Definition
+
+> **High-level modules should depend on abstractions, not concrete implementations.**
+
+Use interfaces instead of directly creating objects.
+
+## Real-life Analogy
+
+A wall socket.
+
+Your laptop doesn't care who made the charger.
+
+It only expects a plug that fits.
+
+The socket is the abstraction.
+
+---
+
+## Bad Example
+
+```java
+class EmailSender{
+
+    public void send(){
+        System.out.println("Email sent");
+    }
+}
+
+class NotificationService{
+
+    private EmailSender sender = new EmailSender();
+
+    public void notifyUser(){
+        sender.send();
+    }
+}
+```
+
+### Why it's bad
+
+`NotificationService` is tightly coupled to `EmailSender`.
+
+Changing to SMS requires modifying this class.
+
+---
+
+## Good Example
+
+Create an abstraction.
+
+```java
+interface MessageSender{
+    void send();
+}
+```
+
+Implementations:
+
+```java
+class EmailSender implements MessageSender{
+
+    public void send(){
+        System.out.println("Email sent");
+    }
+}
+
+class SmsSender implements MessageSender{
+
+    public void send(){
+        System.out.println("SMS sent");
+    }
+}
+```
+
+Inject the dependency.
+
+```java
+class NotificationService{
+
+    private MessageSender sender;
+
+    public NotificationService(MessageSender sender){
+        this.sender = sender;
+    }
+
+    public void notifyUser(){
+        sender.send();
+    }
+}
+```
+
+Usage:
+
+```java
+NotificationService email =
+        new NotificationService(new EmailSender());
+
+NotificationService sms =
+        new NotificationService(new SmsSender());
+```
+
+No modification required.
+
+---
+
+## What is Dependency Injection?
+
+Instead of creating:
+
+```java
+new EmailSender();
+```
+
+inside the class, another class provides it.
+
+### Before
+
+```java
+class NotificationService {
+    private EmailSender sender = new EmailSender();
+}
+```
+
+The class creates its own dependency.
+
+### After
+
+```java
+class NotificationService {
+    private MessageSender sender;
+
+    public NotificationService(MessageSender sender) {
+        this.sender = sender;
+    }
+}
+```
+
+The dependency is **injected from outside**.
+
+---
+
+## Real Interview Example
+
+### Order Processor
+
+Instead of:
+
+```java
+new InventoryManager();
+new NotificationService();
+```
+
+Inject them.
+
+```java
+OrderProcessor(
+    InventoryManager inventory,
+    NotificationService notifications
+)
+```
+
+Now testing becomes much easier.
+
+---
+
+## How to Identify DIP Questions
+
+Keywords:
+
+- inject
+- abstraction
+- depends on concrete class
+- interface
+- replace implementation
+
+Ask yourself:
+
+> "Is this class creating another class directly?"
+
+---
+
+## Memory Trick
+
+> **Depend on interfaces, not implementations.**
+
+---
+
+# How to Identify SOLID Questions Quickly
+
+| If the question says... | Principle |
+|--------------------------|-----------|
+| validation, storage, logging | SRP |
+| new feature, extend, plugin | OCP |
+| contract, promise, substitution | LSP |
+| unnecessary methods | ISP |
+| concrete dependency | DIP |
+
+---
+
+# Interview Cheat Sheet
+
+| Principle | One-Line Rule |
+|-----------|---------------|
+| **SRP** | One class, one job. |
+| **OCP** | Add new classes instead of changing old ones. |
+| **LSP** | Child classes must behave like the parent promises. |
+| **ISP** | Split large interfaces into small focused ones. |
+| **DIP** | Depend on interfaces, not concrete classes. |
+
+---
+
+# Final Memory Sentence
+
+Remember the phrase:
+
+> **"One Job, Extend, Keep Promise, Small Interfaces, Depend on Abstractions."**
+
+Breakdown:
+
+- **S** → One Job
+- **O** → Extend, don't modify
+- **L** → Keep the promise
+- **I** → Small interfaces
+- **D** → Depend on abstractions
+
+This single sentence helps recall all five SOLID principles quickly during interviews.
